@@ -63,7 +63,7 @@
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="se-scope-lib-g071"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories.2105369156" name="Library search path (-L)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories" useByScannerDiscovery="false" valueType="libPaths">
-									<listOptionValue builtIn="false" value="../../../se-scope-target/ide/cubeide/STM32G071/Debug"/>
+									<listOptionValue builtIn="false" value="../../../se-scope-demo/se-scope-target/lib/stm32-g0"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libmath.1128577539" name="Use C math library (-Wl,--start-group -lc -lm -Wl,--end-group)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libmath" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.input.1783530182" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.input">
