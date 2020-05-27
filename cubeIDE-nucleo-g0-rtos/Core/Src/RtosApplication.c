@@ -8,24 +8,23 @@
 
 extern ScopeFramedStackHandle scopeStack;
 
-void scopeApplication(void *args) {
+
+/* Increase timestamp and calculate waveforms */
+void dataApplication(void *args) {
 
 	static uint32_t tmp_timestamp = 0;
 
 	while (true) {
-		timestamp = tmp_timestamp++;
 
+
+		/* Timestamping */
+		timestamp = tmp_timestamp++;
 		ScopeFramedStack_runThreadScope(scopeStack);
 		vTaskDelay(pdMS_TO_TICKS(1));
-	}
-}
 
 
-/* Calculates the waveforms */
-void dataApplication(void *args) {
-	while (true) {
+		/* Calculate waveforms */
 		float t_in_s = timestamp / 1000.0f;
-
 		sinus = 2 * sinf(2 * M_PI * frequency * t_in_s);
 		cosinus = 2 * cosf(2 * M_PI * frequency * t_in_s);
 		leistung = sinus * cosinus;
@@ -44,6 +43,6 @@ void stackApplication(void *args) {
 	while (true) {
 		UartDriver_run();
 		ScopeFramedStack_runThreadStack(scopeStack);
-		vTaskDelay(pdMS_TO_TICKS(1));
+		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 }

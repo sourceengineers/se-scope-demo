@@ -50,7 +50,6 @@
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId stackTaskHandle;
-osThreadId scopeTaskHandle;
 osThreadId dataTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,7 +59,6 @@ osThreadId dataTaskHandle;
 
 void StartDefaultTask(void const * argument);
 extern void stackApplication(void const * argument);
-extern void scopeApplication(void const * argument);
 extern void dataApplication(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -99,10 +97,6 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of stackTask */
   osThreadDef(stackTask, stackApplication, osPriorityNormal, 0, 400);
   stackTaskHandle = osThreadCreate(osThread(stackTask), NULL);
-
-  /* definition and creation of scopeTask */
-  osThreadDef(scopeTask, scopeApplication, osPriorityAboveNormal, 0, 400);
-  scopeTaskHandle = osThreadCreate(osThread(scopeTask), NULL);
 
   /* definition and creation of dataTask */
   osThreadDef(dataTask, dataApplication, osPriorityRealtime, 0, 256);

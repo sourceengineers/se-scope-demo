@@ -21,8 +21,6 @@ extern uint8_t toggle;
  Public functions
 ******************************************************************************/
 
-void scopeApplication(void* args);
-
 void stackApplication(void* args);
 
 void dataApplication(void* args);
