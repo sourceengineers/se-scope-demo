@@ -51,6 +51,7 @@
 osThreadId defaultTaskHandle;
 osThreadId stackTaskHandle;
 osThreadId dataTaskHandle;
+osThreadId logTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -60,6 +61,7 @@ osThreadId dataTaskHandle;
 void StartDefaultTask(void const * argument);
 extern void stackApplication(void const * argument);
 extern void dataApplication(void const * argument);
+extern void logApplication(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -101,6 +103,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of dataTask */
   osThreadDef(dataTask, dataApplication, osPriorityRealtime, 0, 256);
   dataTaskHandle = osThreadCreate(osThread(dataTask), NULL);
+
+  /* definition and creation of logTask */
+  osThreadDef(logTask, logApplication, osPriorityLow, 0, 256);
+  logTaskHandle = osThreadCreate(osThread(logTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */

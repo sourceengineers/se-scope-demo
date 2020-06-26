@@ -69,7 +69,11 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LED_5_Pin GPIO_PIN_5
+#define LED_5_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
+
+
 /* Size of Transmission buffer */
 #define TXSTARTMESSAGESIZE                   (COUNTOF(aTxStartMessage) - 1)
 #define TXENDMESSAGESIZE                     (COUNTOF(aTxEndMessage) - 1)

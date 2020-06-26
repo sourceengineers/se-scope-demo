@@ -25,4 +25,6 @@ void stackApplication(void* args);
 
 void dataApplication(void* args);
 
+void logApplication(void *args);
+
 #endif

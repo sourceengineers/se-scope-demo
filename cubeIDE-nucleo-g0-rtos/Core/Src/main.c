@@ -27,12 +27,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <math.h>
+#include <stdlib.h>
 #include "UartDriver.h"
 #include "RtosMutex.h"
 #include "RtosApplication.h"
 #include "Scope/Builders/ScopeFramedStack.h"
-#include <math.h>
-#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,10 +61,18 @@ void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
+int __io_putchar(int ch){
+  HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+  return ch;
+}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
+
 uint32_t timestamp = 0;
 
 const float frequency = 10.0f;
@@ -120,6 +129,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	RtosMutexHandle dataMutex = RtosMutex_create();
@@ -151,8 +161,6 @@ int main(void)
 	AnnounceStorage_addAnnounceAddress(addressStorage, "sum", &sum, SE_FLOAT);
 	AnnounceStorage_addAnnounceAddress(addressStorage, "flipflop", &flipflop, SE_INT8);
 	AnnounceStorage_addAnnounceAddress(addressStorage, "10s Pulse", &toggle, SE_UINT8);
-
-
 
   /* USER CODE END 2 */
 
@@ -229,7 +237,10 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void _write(char *ptr, size_t len)
+{
+	HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, 0x0040);
+}
 /* USER CODE END 4 */
 
  /**

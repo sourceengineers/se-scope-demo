@@ -4,8 +4,8 @@
 #include <UartDriver.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "Scope/Builders/ScopeFramedStack.h"
-
 extern ScopeFramedStackHandle scopeStack;
 
 #define DATA_APPLICATION_TASK_PERIOD_MS  (10u)
@@ -18,7 +18,6 @@ void dataApplication(void *args) {
 	static uint16_t toggleTime = 0u;
 
 	while (true) {
-
 		/* Timestamping */
 		timestamp += DATA_APPLICATION_TASK_PERIOD_MS;
 		float t_in_s = timestamp / 1000.0f;
@@ -29,15 +28,28 @@ void dataApplication(void *args) {
 		flipflop = flipflop * -1;
 
 		toggleTime += DATA_APPLICATION_TASK_PERIOD_MS;
+
 		if (toggleTime > 10000u) {
 			toggleTime = 0u;
 			toggle = 1 - toggle;
-			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);	/* */
+			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 		}
 
 		ScopeFramedStack_runThreadScope(scopeStack);
 		vTaskDelay(pdMS_TO_TICKS(DATA_APPLICATION_TASK_PERIOD_MS));
 	}
+}
+
+void logApplication(void *args) {
+
+	while(true) {
+		char msg[60];
+		sprintf(msg, "%d", (int)timestamp);
+		strcat(msg, ": Log Message\n\r");
+		_write(msg, strlen(msg));
+		vTaskDelay(1000);
+	}
+
 }
 
 void stackApplication(void *args) {
