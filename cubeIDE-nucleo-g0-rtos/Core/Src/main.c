@@ -149,8 +149,16 @@ int main(void)
 	  .dataMutex = RtosMutex_getIMutex(dataMutex)
 	};
 
+	  ScopeFramedStackLogOptions logOptions; //TODO add serial logger
+
+	  Message_Priorities msgPrios = {
+			  .data = MEDIUM,
+			  .log = MEDIUM,
+			  .stream = MEDIUM
+	  };
+
 	uint8_t* meas = malloc(sizeof(uint8_t));
-	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes);
+	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, logOptions, msgPrios);
 	meas = malloc(sizeof(uint8_t));
 	UartDriver_init();
 

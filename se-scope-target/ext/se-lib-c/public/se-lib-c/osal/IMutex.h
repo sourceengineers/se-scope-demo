@@ -1,21 +1,21 @@
 /*!*****************************************************************************
- * @file         ITransceiver.h
+ * @file         IMutex.h
  *
  * @copyright    Copyright (c) 2021 by Source Engineers GmbH. All Rights Reserved.
  *
- * @license {    This file is part of se-scope-target.
+ * @license {    This file is part of se-lib-c.
  *
- *               se-scope-target is free software; you can redistribute it and/or
+ *               se-lib-c is free software; you can redistribute it and/or
  *               modify it under the terms of the GPLv3 General Public License Version 3
  *               as published by the Free Software Foundation.
  *
- *               se-scope-target is distributed in the hope that it will be useful,
+ *               se-lib-c is distributed in the hope that it will be useful,
  *               but WITHOUT ANY WARRANTY; without even the implied warranty of
  *               MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *               GNU General Public License for more details.
  *
  *               You should have received a copy of the GPLv3 General Public License Version 3
- *               along with se-scope-target.  If not, see <http://www.gnu.org/licenses/>.
+ *               along with se-lib-c.  If not, see <http://www.gnu.org/licenses/>.
  *
  *               In closed source or commercial projects, GPLv3 General Public License Version 3
  *               is not valid. In these cases the purchased commercial license is applied.
@@ -24,67 +24,46 @@
  *
  * @authors      Samuel Schuepbach <samuel.schuepbach@sourceengineers.com>
  *
- * @brief        Supplies an Interface to access the communication interfaces
+ * @brief        Supplies an Interface which has to be implemented to be able to synchronise
+ *               tasks. Implementing this Interface, enables to run the scope as a multi task
+ *               application on various operating systems such as RTOS.
  *
  ******************************************************************************/
 
-#ifndef ITRANSCEIVER_H_
-#define ITRANSCEIVER_H_
+#ifndef IMUTEX_H
+#define IMUTEX_H
 
-#include "Scope/GeneralPurpose/DataTypes.h"
+#include <se-lib-c/definition/SeLibCTypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 /******************************************************************************
  Define interface handle data
 ******************************************************************************/
-typedef struct ITransceiverStruct* ITransceiverHandle;
-
-/**
- * Prototype of function that will be used as a callback
- */
-typedef void(*TransmitCallback)(ITransceiverHandle self);
+typedef struct IMutexStruct* IMutexHandle;
 
 /******************************************************************************
  Define interface
 ******************************************************************************/
-typedef struct ITransceiverStruct{
-    SeScopeGenericReference handle;
+typedef struct IMutexStruct{
+    SeLibGenericReferece handle;
 
     /**
-     * Read data from the output stream
-     * @param self
-     * @param data
-     * @param length
-     * @return
-     */
-    void (* get)(ITransceiverHandle self,  uint8_t* data, size_t length);
-
-    /**
-     * Put data into the input stream so it can be interpreted
-     * @param self
-     * @param data
-     * @param length
-     */
-    void (* put)(ITransceiverHandle self, uint8_t* data, size_t length);
-
-    /**
-     * Reset the input handler
-     * @param self
-     */
-    void (* resetInput)(ITransceiverHandle self);
-
-    /**
-     * Reset the output handler
-     * @param self
-     */
-    void (* resetOutput)(ITransceiverHandle self);
-
-    /**
-     * Bytes pending in the output buffer
+     * Implement lock for the specific operating system mutex lock operation.
+     * Locks the mutex
      * @param self
      * @return
      */
-    size_t (* outputSize)(ITransceiverHandle self);
+    bool (*lock)(IMutexHandle self, uint32_t timeout);
 
-} ITransceiver;
+    /**
+     * Implement unlock for the specific operating system mutex unlock operation.
+     * Unlocks the mutex
+     * @param self
+     */
+    void (*unlock)(IMutexHandle self);
 
-#endif
+} IMutex;
+
+#endif //IMUTEX_H
