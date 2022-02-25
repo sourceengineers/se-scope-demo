@@ -85,6 +85,9 @@ uint8_t toggle = 0;
 
 ScopeFramedStackHandle scopeStack;
 
+size_t logBufferSize = 300;		// size of the buffer. equals max number of buffered messages
+size_t logMessageSize = 300;		// max length of one message. Limited by protobuf
+
 /* USER CODE END 0 */
 
 /**
@@ -149,16 +152,24 @@ int main(void)
 	  .dataMutex = RtosMutex_getIMutex(dataMutex)
 	};
 
-	  ScopeFramedStackLogOptions logOptions; //TODO add serial logger
+	/* Create the Logger and Buffer for the logger */
 
-	  Message_Priorities msgPrios = {
-			  .data = MEDIUM,
-			  .log = MEDIUM,
-			  .stream = MEDIUM
-	  };
+	LoggerBuilder_create();
+
+	LoggerBuilder_buildThreadSafe(logBufferSize, logBufferSize, mutexes.logBufferMutex);
+
+	ScopeFramedStackLogOptions scopeLogOptions = {
+			.logByteStream = LoggerBuilder_getILoggerBufferHandle()
+	};
+
+	Message_Priorities msgPrios = {
+		.data = MEDIUM,
+		.log = MEDIUM,
+		.stream = MEDIUM
+	};
 
 	uint8_t* meas = malloc(sizeof(uint8_t));
-	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, logOptions, msgPrios);
+	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
 	meas = malloc(sizeof(uint8_t));
 	UartDriver_init();
 
