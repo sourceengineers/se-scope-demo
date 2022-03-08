@@ -33,6 +33,11 @@
 #include "RtosMutex.h"
 #include "RtosApplication.h"
 #include "Scope/Builders/ScopeFramedStack.h"
+
+// TODO move to public folder in se-lib-c
+//#include "se-lib-c/stream/BufferedByteStream.h"
+//#include "se-lib-c/stream/ThreadSafeByteStream.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -135,8 +140,7 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-	RtosMutexHandle dataMutex = RtosMutex_create();
-	RtosMutexHandle configMutex = RtosMutex_create();
+
 
 	ScopeFramedStackConfig config = {
 	  .addressesInAddressAnnouncer = 6,
@@ -147,19 +151,31 @@ int main(void)
 	  .sizeOfChannels = 50
 	};
 
+
+
+	RtosMutexHandle dataMutex = RtosMutex_create();
+	RtosMutexHandle configMutex = RtosMutex_create();
+	RtosMutexHandle loggergMutex = RtosMutex_create();
+
 	ScopeFramedStackMutex mutexes = {
 	  .configMutex = RtosMutex_getIMutex(configMutex),
-	  .dataMutex = RtosMutex_getIMutex(dataMutex)
+	  .dataMutex = RtosMutex_getIMutex(dataMutex),
+	  .logBufferMutex = RtosMutex_getIMutex(loggergMutex)
 	};
 
 	/* Create the Logger and Buffer for the logger */
 
-	LoggerBuilder_create();
-
-	LoggerBuilder_buildThreadSafe(logBufferSize, logBufferSize, mutexes.logBufferMutex);
+//	LoggerBuilder_create();
+//
+//	LoggerBuilder_buildThreadSafe(logBufferSize, logBufferSize, mutexes.logBufferMutex);
+//
+	RtosMutexHandle bufferMutex = RtosMutex_create();
+	BufferedByteStreamHandle stream = BufferedByteStream_create(512);
+	ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(RtosMutex_getIMutex(bufferMutex), BufferedByteStream_getIByteStream(stream));
+	IByteStreamHandle logger = ThreadSafeByteStream_getIByteStream(bufferedStream);
 
 	ScopeFramedStackLogOptions scopeLogOptions = {
-			.logByteStream = LoggerBuilder_getILoggerBufferHandle()
+	  .logByteStream = logger
 	};
 
 	Message_Priorities msgPrios = {
@@ -168,9 +184,9 @@ int main(void)
 		.stream = MEDIUM
 	};
 
-	uint8_t* meas = malloc(sizeof(uint8_t));
+	//uint8_t* meas = malloc(sizeof(uint8_t));
 	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
-	meas = malloc(sizeof(uint8_t));
+	//meas = malloc(sizeof(uint8_t));
 	UartDriver_init();
 
 	AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
