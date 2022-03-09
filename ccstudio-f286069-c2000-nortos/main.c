@@ -16,18 +16,17 @@
 #include "UartDriver.h"
 #include <math.h>
 
+#define CLOCK_FREQ 90000
+#define TIMER_MAX 0xFFFFFFFF
+
 //Timer variables
-uint32_t timestamp_ms = 0;
-uint32_t deltaTime_ms = 0;
-uint32_t timerDelta;
-uint32_t timerCount;
 uint32_t timerCountLast = 0xFFFFFFFF;
-uint32_t timerMax = 0xFFFFFFFF;
 uint32_t timer_cycleCount = 0;
 
 //Define Scope values
-float valueA = 0.0f;
-uint16_t valueB = 0;
+float sine = 0.0f;
+uint16_t overflow_counter = 0;
+uint32_t timestamp_ms = 0;
 
 void transmit(ITransceiverHandle self) {
     uint32_t outputSize = self->outputSize(self->handle);
@@ -103,27 +102,25 @@ int main(void)
     ITransceiverHandle transceiver = ScopeFramedStack_getTranscevier(scopeStack);
 
     AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &valueA, SE_FLOAT);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "overflow_counter", &valueB, SE_UINT16);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &sine, SE_FLOAT);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "overflow_counter", &overflow_counter, SE_UINT16);
 
     //Start CPU timer
     CpuTimer0Regs.TCR.bit.TSS = 0;
 
     bool logPending = false;
-    int logCount = 0;
-
 
     //Scope loop
     for(;;)
     {
+        //Get Timestamp (CPU freq = 90 MHz, 32Bit Timer, counting down)
+        uint32_t timerCount = CpuTimer0Regs.TIM.all;
+        timestamp_ms = ((TIMER_MAX - timerCount) / CLOCK_FREQ) + (timer_cycleCount * 47722);
 
         uint16_t byte;
         while(UartDriver_read(&byte, 1) > 0) {
             transceiver->put(transceiver->handle, &byte, 1);
         }
-
-        //Get Timestamp (CPU freq = 90 MHz, 32Bit Timer, counting down)
-        timerCount = CpuTimer0Regs.TIM.all;
 
         if (timestamp_ms % 1000 > 500)
         {
@@ -132,30 +129,16 @@ int main(void)
 
         if (timestamp_ms % 1000 < 500 && logPending == true)
         {
-            logCount += 1;
             char text[100];
-            int len = sprintf(text, "Test: %i\n", logCount);
+            int len = sprintf(text, "Timestamp: %lu\n", timestamp_ms);
             stream->write(stream->handle, (const uint16_t*) text, len);
             logPending = false;
         }
-
-        if (timerCount < timerCountLast)
-        {
-            timerDelta = timerCountLast - timerCount;
-        }
-        else
-        {
-            timerDelta = timerCountLast + (timerMax - timerCount);
-            timer_cycleCount++;
-        }
         timerCountLast = timerCount;
 
-        deltaTime_ms = timerDelta / 90000;
-        timestamp_ms = ((timerMax - timerCount)/90000)+(timer_cycleCount * 47722);
-
         //Assign values for scope stack
-        valueA = sinf(timestamp_ms);
-        valueB += 10;
+        sine = sinf((float) timestamp_ms);
+        overflow_counter += 10;
 
         ScopeFramedStack_run(scopeStack);
     }
