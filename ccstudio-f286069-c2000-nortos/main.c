@@ -8,6 +8,8 @@
 //includes
 #include "DSP28x_Project.h"
 #include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 #include "Scope/Communication/ITransceiver.h"
 #include "Scope/Builders/ScopeFramedStack.h"
 #include "se-lib-c/stream/BufferedByteStream.h"
@@ -18,12 +20,10 @@
 uint32_t timestamp_ms = 0;
 uint32_t deltaTime_ms = 0;
 uint32_t timerDelta;
-uint32_t timerCounts;
-uint32_t timerCounts_0 = 0xFFFFFFFF;
+uint32_t timerCount;
+uint32_t timerCountLast = 0xFFFFFFFF;
 uint32_t timerMax = 0xFFFFFFFF;
 uint32_t timer_cycleCount = 0;
-
-uint32_t loopCount = 0;
 
 //Define Scope values
 float valueA = 0.0f;
@@ -103,13 +103,15 @@ int main(void)
     ITransceiverHandle transceiver = ScopeFramedStack_getTranscevier(scopeStack);
 
     AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "A", &valueA, SE_FLOAT);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "B", &valueB, SE_UINT16);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &valueA, SE_FLOAT);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "overflow_counter", &valueB, SE_UINT16);
 
     //Start CPU timer
     CpuTimer0Regs.TCR.bit.TSS = 0;
 
     bool logPending = false;
+    int logCount = 0;
+
 
     //Scope loop
     for(;;)
@@ -121,7 +123,7 @@ int main(void)
         }
 
         //Get Timestamp (CPU freq = 90 MHz, 32Bit Timer, counting down)
-        timerCounts = CpuTimer0Regs.TIM.all;
+        timerCount = CpuTimer0Regs.TIM.all;
 
         if (timestamp_ms % 1000 > 500)
         {
@@ -130,31 +132,32 @@ int main(void)
 
         if (timestamp_ms % 1000 < 500 && logPending == true)
         {
-            stream->write(stream->handle, "test\n", 5);
+            logCount += 1;
+            char text[100];
+            int len = sprintf(text, "Test: %i\n", logCount);
+            stream->write(stream->handle, (const uint16_t*) text, len);
             logPending = false;
         }
 
-        if (timerCounts < timerCounts_0)
+        if (timerCount < timerCountLast)
         {
-            timerDelta = timerCounts_0 - timerCounts;
+            timerDelta = timerCountLast - timerCount;
         }
         else
         {
-            timerDelta = timerCounts_0 + (timerMax - timerCounts);
+            timerDelta = timerCountLast + (timerMax - timerCount);
             timer_cycleCount++;
         }
-        timerCounts_0 = timerCounts;
+        timerCountLast = timerCount;
 
         deltaTime_ms = timerDelta / 90000;
-        timestamp_ms = ((timerMax - timerCounts)/90000)+(timer_cycleCount * 47722);
+        timestamp_ms = ((timerMax - timerCount)/90000)+(timer_cycleCount * 47722);
 
         //Assign values for scope stack
         valueA = sinf(timestamp_ms);
         valueB += 10;
 
         ScopeFramedStack_run(scopeStack);
-
-        loopCount++;
     }
 }
 
