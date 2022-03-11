@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "Scope/Builders/ScopeFramedStack.h"
 extern ScopeFramedStackHandle scopeStack;
 
@@ -16,7 +17,6 @@ void dataApplication(void *args) {
 	timestamp = 0u;
 	toggle = 0;
 	static uint16_t toggleTime = 0u;
-
 	while (true) {
 		/* Timestamping */
 		timestamp += DATA_APPLICATION_TASK_PERIOD_MS;
@@ -41,15 +41,13 @@ void dataApplication(void *args) {
 }
 
 void logApplication(void *args) {
-
 	while(true) {
 		char msg[60];
 		sprintf(msg, "%d", (int)timestamp);
 		strcat(msg, ": Log Message\n\r");
-		_write(msg, strlen(msg));
+		logger->write(logger->handle, (uint8_t *)msg, strlen(msg));
 		vTaskDelay(1000);
 	}
-
 }
 
 void stackApplication(void *args) {

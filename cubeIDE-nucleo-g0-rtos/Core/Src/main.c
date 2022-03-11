@@ -34,9 +34,8 @@
 #include "RtosApplication.h"
 #include "Scope/Builders/ScopeFramedStack.h"
 
-// TODO move to public folder in se-lib-c
-//#include "se-lib-c/stream/BufferedByteStream.h"
-//#include "se-lib-c/stream/ThreadSafeByteStream.h"
+#include "se-lib-c/stream/BufferedByteStream.h"
+#include "se-lib-c/stream/ThreadSafeByteStream.h"
 
 /* USER CODE END Includes */
 
@@ -93,6 +92,7 @@ ScopeFramedStackHandle scopeStack;
 size_t logBufferSize = 300;		// size of the buffer. equals max number of buffered messages
 size_t logMessageSize = 300;		// max length of one message. Limited by protobuf
 
+IByteStreamHandle logger;
 /* USER CODE END 0 */
 
 /**
@@ -172,7 +172,7 @@ int main(void)
 	RtosMutexHandle bufferMutex = RtosMutex_create();
 	BufferedByteStreamHandle stream = BufferedByteStream_create(512);
 	ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(RtosMutex_getIMutex(bufferMutex), BufferedByteStream_getIByteStream(stream));
-	IByteStreamHandle logger = ThreadSafeByteStream_getIByteStream(bufferedStream);
+	logger = ThreadSafeByteStream_getIByteStream(bufferedStream);
 
 	ScopeFramedStackLogOptions scopeLogOptions = {
 	  .logByteStream = logger
@@ -272,10 +272,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void _write(char *ptr, size_t len)
-{
-	HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, 0x0040);
-}
+
 /* USER CODE END 4 */
 
  /**
