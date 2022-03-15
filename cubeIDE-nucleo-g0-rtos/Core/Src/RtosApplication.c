@@ -1,13 +1,13 @@
 #include "RtosApplication.h"
+
+#include "UartDriver.h"
+
 #include <FreeRTOS.h>
 #include <task.h>
-#include <UartDriver.h>
+
 #include <math.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "Scope/Builders/ScopeFramedStack.h"
-extern ScopeFramedStackHandle scopeStack;
 
 #define DATA_APPLICATION_TASK_PERIOD_MS  (10u)
 #define STACK_APPLICATION_TASK_PERIOD_MS (10u * DATA_APPLICATION_TASK_PERIOD_MS)
@@ -16,10 +16,13 @@ extern ScopeFramedStackHandle scopeStack;
 void dataApplication(void *args) {
 	timestamp = 0u;
 	toggle = 0;
-	static uint16_t toggleTime = 0u;
+
+	uint16_t toggleTime = 0u;
+
 	while (true) {
 		/* Timestamping */
 		timestamp += DATA_APPLICATION_TASK_PERIOD_MS;
+
 		float t_in_s = timestamp / 1000.0f;
 		sinus = 2 * sinf(2 * M_PI * frequency * t_in_s);
 		cosinus = 2 * cosf(2 * M_PI * frequency * t_in_s);

@@ -1,7 +1,11 @@
 #ifndef RTOSAPPLICATION
 #define RTOSAPPLICATION
+
 #include <stdint.h>
+
+#include "Scope/Builders/ScopeFramedStack.h"
 #include "se-lib-c/stream/IByteStream.h"
+
 /******************************************************************************
  External variables
 ******************************************************************************/
@@ -14,7 +18,10 @@ extern float sum;
 const extern float frequency;
 extern int flipflop;
 extern uint8_t toggle;
-IByteStreamHandle logger;
+
+extern IByteStreamHandle logger;
+extern ScopeFramedStackHandle scopeStack;
+
 /******************************************************************************
  Public functions
 ******************************************************************************/

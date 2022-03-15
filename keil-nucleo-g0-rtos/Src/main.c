@@ -178,9 +178,9 @@ int main(void) {
 		// Scope instantiation
     scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
 		
-		UartDriver_init();
+    UartDriver_init();
 		
-		// Trigger announcement
+    // Variable announcement
     AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
     AnnounceStorage_addAnnounceAddress(addressStorage, "sinus", &sinus, SE_FLOAT);
     AnnounceStorage_addAnnounceAddress(addressStorage, "cosinus", &cosinus, SE_FLOAT);
