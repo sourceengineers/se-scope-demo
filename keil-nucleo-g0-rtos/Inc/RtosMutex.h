@@ -1,4 +1,4 @@
-#include <Scope/GeneralPurpose/IMutex.h>
+#include <se-lib-c/osal/IMutex.h>
 
 #ifndef RTOSDRIVER
 #define RTOSDRIVER

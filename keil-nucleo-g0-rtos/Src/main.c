@@ -35,9 +35,14 @@
 #include "UartDriver.h"
 #include "RtosMutex.h"
 #include "RtosApplication.h"
+
 #include "Scope/Builders/ScopeFramedStack.h"
-#include <arm_math.h>
+#include "se-lib-c/stream/BufferedByteStream.h"
+#include "se-lib-c/stream/ThreadSafeByteStream.h"
+
 #include <stdlib.h>
+#include <assert.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,9 +78,12 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// global timestamp
 uint32_t timestamp = 0;
 
-const float frequency = 100.0f;
+// scope variables
+const float frequency = 10.0f;
 float sinus = 0.0f;
 float cosinus = 0.0f;
 float leistung = 0.0f;
@@ -83,7 +91,10 @@ float sum = 0.0f;
 int flipflop = -1;
 uint8_t toggle = 0;
 
+// global instances TODO passs to thread/task
 ScopeFramedStackHandle scopeStack;
+IByteStreamHandle logger;
+
 /* USER CODE END 0 */
 
 /**
@@ -92,7 +103,7 @@ ScopeFramedStackHandle scopeStack;
   */
 int main(void) {
     /* USER CODE BEGIN 1 */
-/* STM32G0xx HAL library initialization:
+		/* STM32G0xx HAL library initialization:
        - Configure the Flash prefetch
        - Systick timer is configured by default as source of time base, but user 
          can eventually implement his proper time base source (a general purpose 
@@ -107,6 +118,7 @@ int main(void) {
 
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
+
 
     /* USER CODE BEGIN Init */
 
@@ -125,9 +137,7 @@ int main(void) {
     MX_ADC1_Init();
     /* USER CODE BEGIN 2 */
 
-    RtosMutexHandle dataMutex = RtosMutex_create();
-    RtosMutexHandle configMutex = RtosMutex_create();
-
+		// scope configuration
     ScopeFramedStackConfig config = {
             .addressesInAddressAnnouncer = 6,
             .callback = &transmit_data,
@@ -136,18 +146,41 @@ int main(void) {
             .timebase = 0.001f,
             .sizeOfChannels = 50
     };
-
+		
+		// Stack mutexes
+		RtosMutexHandle dataMutex = RtosMutex_create();
+    RtosMutexHandle configMutex = RtosMutex_create();
+		RtosMutexHandle loggergMutex = RtosMutex_create();
+		
     ScopeFramedStackMutex mutexes = {
-            .configMutex = RtosMutex_getIMutex(configMutex),
-            .dataMutex = RtosMutex_getIMutex(dataMutex)
+      .configMutex = RtosMutex_getIMutex(configMutex),
+      .dataMutex = RtosMutex_getIMutex(dataMutex),
+			.logBufferMutex = RtosMutex_getIMutex(loggergMutex)
     };
 
+		// Logger 
+		RtosMutexHandle bufferMutex = RtosMutex_create();
+		BufferedByteStreamHandle stream = BufferedByteStream_create(512);
+		ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(RtosMutex_getIMutex(bufferMutex), BufferedByteStream_getIByteStream(stream));
+		logger = ThreadSafeByteStream_getIByteStream(bufferedStream);
+		
+		ScopeFramedStackLogOptions scopeLogOptions = {
+			.logByteStream = logger
+		};
 
-		uint8_t* meas = malloc(sizeof(uint8_t));
-    scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes);
-		meas = malloc(sizeof(uint8_t));
+		// Priorities
+		Message_Priorities msgPrios = {
+			.data = MEDIUM,
+			.log = MEDIUM,
+			.stream = MEDIUM
+		};
+	
+		// Scope instantiation
+    scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
+		
 		UartDriver_init();
 		
+		// Trigger announcement
     AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
     AnnounceStorage_addAnnounceAddress(addressStorage, "sinus", &sinus, SE_FLOAT);
     AnnounceStorage_addAnnounceAddress(addressStorage, "cosinus", &cosinus, SE_FLOAT);
@@ -156,8 +189,6 @@ int main(void) {
     AnnounceStorage_addAnnounceAddress(addressStorage, "flipflop", &flipflop, SE_INT8);
 		AnnounceStorage_addAnnounceAddress(addressStorage, "10s Pulse", &toggle, SE_UINT8);
 		
-		
-
     /* USER CODE END 2 */
 
     /* Call init function for freertos objects (in freertos.c) */
@@ -216,6 +247,13 @@ void SystemClock_Config(void) {
 }
 
 /* USER CODE BEGIN 4 */
+
+// The scope library calls this function when an assert triggered
+void __assert_func (const char * file, int line, const char * func, const char * expr)
+{
+	  assert(false);
+}
+
 /* USER CODE END 4 */
 
 /**

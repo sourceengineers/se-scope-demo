@@ -89,9 +89,6 @@ uint8_t toggle = 0;
 
 ScopeFramedStackHandle scopeStack;
 
-size_t logBufferSize = 300;		// size of the buffer. equals max number of buffered messages
-size_t logMessageSize = 300;		// max length of one message. Limited by protobuf
-
 IByteStreamHandle logger;
 /* USER CODE END 0 */
 
@@ -140,8 +137,6 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-
-
 	ScopeFramedStackConfig config = {
 	  .addressesInAddressAnnouncer = 6,
 	  .callback = &transmit_data,
@@ -150,7 +145,6 @@ int main(void)
 	  .timebase = 0.001f,
 	  .sizeOfChannels = 50
 	};
-
 
 
 	RtosMutexHandle dataMutex = RtosMutex_create();
@@ -164,11 +158,6 @@ int main(void)
 	};
 
 	/* Create the Logger and Buffer for the logger */
-
-//	LoggerBuilder_create();
-//
-//	LoggerBuilder_buildThreadSafe(logBufferSize, logBufferSize, mutexes.logBufferMutex);
-//
 	RtosMutexHandle bufferMutex = RtosMutex_create();
 	BufferedByteStreamHandle stream = BufferedByteStream_create(512);
 	ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(RtosMutex_getIMutex(bufferMutex), BufferedByteStream_getIByteStream(stream));
@@ -184,9 +173,8 @@ int main(void)
 		.stream = MEDIUM
 	};
 
-	//uint8_t* meas = malloc(sizeof(uint8_t));
 	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
-	//meas = malloc(sizeof(uint8_t));
+
 	UartDriver_init();
 
 	AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
