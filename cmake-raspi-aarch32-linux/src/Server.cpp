@@ -102,7 +102,6 @@ Server::Server(const std::string& serial): timestamp(0)
     });
 
     uint32_t logDelay = 0;
-
     while(true){
         timestamp = timestamp + 1;
         flipflop = flipflop * -1;
