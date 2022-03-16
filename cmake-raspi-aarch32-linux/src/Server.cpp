@@ -7,6 +7,7 @@
 #include <Server.h>
 #include <thread>
 #include <LinuxMutex.h>
+#include <math.h>
 
 extern "C"{
     #include <Scope/Builders/ScopeFramedStack.h>
@@ -67,7 +68,7 @@ Server::Server(const std::string& serial): timestamp(0)
     //Announce the signals
     AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
     AnnounceStorage_addAnnounceAddress(addressStorage, "flipflop", &flipflop, SE_INT16);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &adc_value, SE_FLOAT);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &sine, SE_FLOAT);
 }
 
 [[noreturn]] void Server::start(){
@@ -105,6 +106,7 @@ Server::Server(const std::string& serial): timestamp(0)
     while(true){
         timestamp = timestamp + 1;
         flipflop = flipflop * -1;
+        sine = sinf((float) timestamp);
         logDelay += 1;
 
         // One second

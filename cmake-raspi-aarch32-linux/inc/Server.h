@@ -20,7 +20,7 @@ private:
     uint32_t timestamp;
     ScopeFramedStackHandle scopeStack;
     int32_t flipflop;
-    float adc_value;
+    float sine;
     std::string serial;
     IByteStreamHandle logByteStream;
 };
