@@ -13,7 +13,6 @@
 #ifndef LINUXMUTEX_H
 #define LINUXMUTEX_H
 
-#include <pthread.h>
 #include <se-lib-c/osal/IMutex.h>
 
 /******************************************************************************

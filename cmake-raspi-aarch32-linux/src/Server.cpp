@@ -4,6 +4,9 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <Server.h>
+#include <thread>
+#include <LinuxMutex.h>
 
 extern "C"{
     #include <Scope/Builders/ScopeFramedStack.h>
@@ -13,25 +16,15 @@ extern "C"{
     #include <se-lib-c/osal/IMutex.h>
     #include <se-lib-c/stream/BufferedByteStream.h>
     #include <se-lib-c/stream/ThreadSafeByteStream.h>
-    #include <LinuxMutex.h>
 }
-#include "../inc/Server.h"
 
-Server::Server()
+constexpr size_t LOG_BUFFER_SIZE = 256;
+constexpr size_t INTERVAL_STACK = 1000 * 50; // 50 ms
+constexpr size_t INTERVAL_TIMESTAMP = 1000;
+
+Server::Server(const std::string& serial): timestamp(0)
 {
-    this->mCommunicator.setUartPath("/dev/serial0");
-    mCommunicator.initializeCommunicator();
-    this->mInputDataLength = 0;
-}
-
-void Server::start(void){
-    this->mTimestamp = 0;
-
-    int16_t flipflop = 1 ;
-    int16_t const_1 = 1;
-    float adc_value;
-
-    pthread_mutex_init(&this->mUartMutex, NULL);
+    this->serial = serial;
 
     LinuxMutexHandle configMutex = LinuxMutex_create();
     LinuxMutexHandle dataMutex = LinuxMutex_create();
@@ -47,19 +40,16 @@ void Server::start(void){
     ScopeFramedStackConfig config = {
             .sizeOfChannels = 50,
             .amountOfChannels = 3,
-            .callback = NULL,   // might also use a callback, but could not get it to work
-            .timestamp = &mTimestamp,
+            .callback = NULL,
+            .timestamp = &timestamp,
             .addressesInAddressAnnouncer = 3,
             .timebase = 0.001f,
     };
 
-    //  LOGGER
-    IByteStreamHandle  _logByteStream;
-    size_t _logBufferSize = 1024;
-    size_t _logMessageSize = 300;
-
-    BufferedByteStreamHandle stream = BufferedByteStream_create(512);
-    ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(LinuxMutex_getIMutex(logMutex), BufferedByteStream_getIByteStream(stream));
+    BufferedByteStreamHandle stream = BufferedByteStream_create(LOG_BUFFER_SIZE);
+    ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(
+            LinuxMutex_getIMutex(logMutex),
+            BufferedByteStream_getIByteStream(stream));
 
     Message_Priorities priorities = {
             .data = HIGH,
@@ -67,142 +57,68 @@ void Server::start(void){
             .stream = LOW,
     };
 
-    _logByteStream = ThreadSafeByteStream_getIByteStream(bufferedStream);
+    logByteStream = ThreadSafeByteStream_getIByteStream(bufferedStream);
     ScopeFramedStackLogOptions scopeLogOptions = {
-            .logByteStream = _logByteStream
+            .logByteStream = logByteStream
     };
 
-    this->mScopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, priorities);
-    this->mTransceiver = ScopeFramedStack_getTranscevier(this->mScopeStack);
+    scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, priorities);
 
     //Announce the signals
-    AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(mScopeStack);
+    AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
     AnnounceStorage_addAnnounceAddress(addressStorage, "flipflop", &flipflop, SE_INT16);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "const_1", &const_1, SE_INT16);
-    AnnounceStorage_addAnnounceAddress(addressStorage, "ADC_0", &adc_value, SE_FLOAT);
-
-    //start the threads
-    pthread_t threadHandleInput;
-    pthread_create(&threadHandleInput, NULL, &Server::runListenerHelper, this);
-    pthread_t threadHandleStack;
-    pthread_create(&threadHandleStack, NULL, &Server::runStackHelper, this);
-    pthread_t threadHandleScope;
-    pthread_create(&threadHandleScope, NULL, &Server::runScopeHelper, this);
-    pthread_t threadHandleTransmit;
-    pthread_create(&threadHandleTransmit, NULL, &Server::runTransmitHelper, this);
-    pthread_t threadHandleLog;
-    pthread_create(&threadHandleLog, NULL, &Server::runLogHelper, this);
-
-    while(true){
-        mTimestamp = mTimestamp + 1;
-        flipflop = flipflop * -1;
-        usleep(INTERVAL_TIMESTAMP);
-    }
-//    pthread_cancel(threadHandleScope);
+    AnnounceStorage_addAnnounceAddress(addressStorage, "sine", &adc_value, SE_FLOAT);
 }
 
+[[noreturn]] void Server::start(){
 
-void* Server::runScope(void){
-    while(true){
-        ScopeFramedStack_runThreadScope(this->mScopeStack);
-        usleep(INTERVAL_SCOPE);
+    int status = uartDriver.start("/dev/serial0");
+    if (status < 0) {
+        std::cerr << "Failed to open path to serial port" << std::endl;
+        exit(status);
     }
-}
 
-/**
- * @brief receive data from the communicator
- */
-void* Server::runListener(void){
-    while(true){
-        if(pthread_mutex_lock(&this->mUartMutex) == 0) {
-            this->mInputDataLength = this->mCommunicator.receive(this->mInputData, INPUT_BUFFER_SIZE);
-            if(this->mInputDataLength > 0){
-                std::cout << " Received " << this->mInputDataLength << " Bytes" << std::endl;
+    std::thread stackThread([this] {
+        ITransceiver* transceiver = ScopeFramedStack_getTranscevier(scopeStack);
+        while(true){
+            auto bytes = uartDriver.receive();
+            for (auto& b: bytes) {
+                transceiver->put(transceiver->handle, &b, 1);
             }
-            pthread_mutex_unlock(&this->mUartMutex);
-            usleep(INTERVAL_LISTENER);
-        }
-    }
-}
 
-/**
- * @brief runs the scope stack
- *
- * if there is data in the input data buffer, it gives it to the transceiver and
- * runs the Scope Stack
- */
-void* Server::runStack(void) {
-    while(true){
-        if(pthread_mutex_trylock(&this->mUartMutex) == 0){
-            if(this->mInputDataLength > 0){
-                this->mTransceiver->put(mTransceiver, (uint8_t*) this->mInputData, this->mInputDataLength);
-                this->mInputDataLength = 0;
+            ScopeFramedStack_runThreadStack(scopeStack);
+
+            size_t outputLength = transceiver->outputSize(transceiver->handle);
+            if (outputLength > 0) {
+                std::vector<uint8_t> output;
+                uint8_t b;
+                for (size_t i = 0; i < outputLength; ++i) {
+                    transceiver->get(transceiver->handle, &b, 1);
+                }
             }
-            ScopeFramedStack_runThreadStack(this->mScopeStack);
-            pthread_mutex_unlock(&this->mUartMutex);
+
             usleep(INTERVAL_STACK);
         }
-    }
-}
+    });
 
-/**
- * @brief sends the data from the transceiver via communicator
- *
- */
-void* Server::runTransmit() {
+    uint32_t logDelay = 0;
+
     while(true){
-        if(pthread_mutex_trylock(&this->mUartMutex) == 0) {
-            const size_t length = this->mTransceiver->outputSize(this->mTransceiver);
-            uint8_t data[length];
-            if (length > 0) {
-                this->mTransceiver->get(this->mTransceiver, data, length);
-                this->mCommunicator.transmit((char *) data, length);
+        timestamp = timestamp + 1;
+        flipflop = flipflop * -1;
+        logDelay += 1;
+
+        // One second
+        char log[LOG_BUFFER_SIZE];
+        if (logDelay > 1000) {
+            logDelay = 0;
+            int len = snprintf(log, LOG_BUFFER_SIZE, "Timestamp: %u\n", timestamp);
+            if (len > 0) {
+                logByteStream->write(logByteStream->handle, (const uint8_t*) log, len);
             }
-            pthread_mutex_unlock(&this->mUartMutex);
-            usleep(INTERVAL_TRANSMIT);
         }
+
+        ScopeFramedStack_runThreadScope(scopeStack);
+        usleep(INTERVAL_TIMESTAMP);
     }
-}
-
-/**
- * @brief Logs a message every second
- */
-void* Server::runLog() {
-    int log_counter = 0;
-    char log_msg [100];
-    while(true){
-        sprintf(log_msg, "Log Message num %d\n\r", log_counter);
-        log_counter++;
-        usleep(INTERVAL_LOG);
-    }
-}
-
-//  ****************************************************************
-//  Helper Functions for the threads
-//  ****************************************************************
-void *Server::runStackHelper(void* context){
-    return ((Server *)context)->runStack();
-}
-
-void *Server::runScopeHelper(void* context){
-    return ((Server *)context)->runScope();
-}
-
-void  *Server::runListenerHelper(void* context){
-    return ((Server *)context)->runListener();
-}
-
-void *Server::runTransmitHelper(void *context) {
-    return ((Server *)context)->runTransmit();
-}
-
-//static
-void *Server::runLogHelper(void *context) {
-    return ((Server *)context)->runLog();
-}
-
-int main(){
-    Server server;
-    std::cout << "Starting the server " << std::endl;
-    server.start();
 }

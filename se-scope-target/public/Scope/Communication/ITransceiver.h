@@ -36,7 +36,7 @@
 /******************************************************************************
  Define interface handle data
 ******************************************************************************/
-typedef struct ITransceiverStruct* ITransceiverHandle;
+typedef SeScopeGenericReference ITransceiverHandle;
 
 /**
  * Prototype of function that will be used as a callback
@@ -47,7 +47,7 @@ typedef void(*TransmitCallback)(ITransceiverHandle self);
  Define interface
 ******************************************************************************/
 typedef struct ITransceiverStruct{
-    SeScopeGenericReference handle;
+    ITransceiverHandle handle;
 
     /**
      * Read data from the output stream

@@ -132,7 +132,7 @@ AnnounceStorageHandle ScopeFramedStack_getAnnounceStorage(ScopeFramedStackHandle
  * @return
  * @param self
  */
-ITransceiverHandle ScopeFramedStack_getTranscevier(ScopeFramedStackHandle self);
+ITransceiver* ScopeFramedStack_getTranscevier(ScopeFramedStackHandle self);
 
 /**
  * Deconstructor
