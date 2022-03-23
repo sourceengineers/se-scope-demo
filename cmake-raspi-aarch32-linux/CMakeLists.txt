@@ -11,7 +11,7 @@ project(${PROJECT_NAME})
 # Add Sources
 ################################################################################
 # Communication Sources
-add_executable(Se-Scope-Server src/main.cpp src/Server.cpp src/LinuxMutex.cpp src/UartDriver.cpp)
+add_executable(Se-Scope-Server src/main.cpp src/Server.cpp src/LinuxMutex.cpp src/TcpServer.cpp)
 
 target_include_directories(Se-Scope-Server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../se-scope-target/public/ inc)
 

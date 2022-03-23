@@ -4,24 +4,23 @@
 extern "C" {
     #include <Scope/Builders/ScopeFramedStack.h>
 };
-#include "UartDriver.h"
+#include <TcpServer.h>
 
 class Server {
 
 public:
-    Server(const std::string& serialPath);
+    Server();
 
     [[noreturn]] void start();
 
     //helper functions for the threads
 
 private:
-    UartDriver uartDriver;
+    TcpServer tcpServer;
     uint32_t timestamp;
     ScopeFramedStackHandle scopeStack;
-    int32_t flipflop;
-    float sine;
-    std::string serial;
+    int32_t flipflop{};
+    float sine{};
     IByteStreamHandle logByteStream;
 };
 

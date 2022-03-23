@@ -20,13 +20,11 @@ extern "C"{
 }
 
 constexpr size_t LOG_BUFFER_SIZE = 256;
-constexpr size_t INTERVAL_STACK = 1000 * 50; // 50 ms
+constexpr size_t INTERVAL_STACK = 1000; // 1 ms
 constexpr size_t INTERVAL_TIMESTAMP = 1000;
 
-Server::Server(const std::string& serial): timestamp(0)
+Server::Server(): timestamp(0), tcpServer(8080), flipflop(0), sine(0)
 {
-    this->serial = serial;
-
     LinuxMutexHandle configMutex = LinuxMutex_create();
     LinuxMutexHandle dataMutex = LinuxMutex_create();
     LinuxMutexHandle logMutex = LinuxMutex_create();
@@ -73,7 +71,7 @@ Server::Server(const std::string& serial): timestamp(0)
 
 [[noreturn]] void Server::start(){
 
-    int status = uartDriver.start("/dev/serial0");
+    int status = tcpServer.initialize();
     if (status < 0) {
         std::cerr << "Failed to open path to serial port" << std::endl;
         exit(status);
@@ -82,20 +80,22 @@ Server::Server(const std::string& serial): timestamp(0)
     std::thread stackThread([this] {
         ITransceiver* transceiver = ScopeFramedStack_getTranscevier(scopeStack);
         while(true){
-            auto bytes = uartDriver.receive();
-            for (auto& b: bytes) {
-                transceiver->put(transceiver->handle, &b, 1);
-            }
+            auto bytes = tcpServer.receive();
+            transceiver->put(transceiver->handle, bytes.data(), bytes.size());
 
             ScopeFramedStack_runThreadStack(scopeStack);
 
             size_t outputLength = transceiver->outputSize(transceiver->handle);
             if (outputLength > 0) {
+                std::cout << "Scope has data pending" << std::endl;
                 std::vector<uint8_t> output;
                 uint8_t b;
                 for (size_t i = 0; i < outputLength; ++i) {
                     transceiver->get(transceiver->handle, &b, 1);
+                    output.push_back(b);
                 }
+
+                tcpServer.transmit(output);
             }
 
             usleep(INTERVAL_STACK);
@@ -110,14 +110,14 @@ Server::Server(const std::string& serial): timestamp(0)
         logDelay += 1;
 
         // One second
-        char log[LOG_BUFFER_SIZE];
-        if (logDelay > 1000) {
-            logDelay = 0;
-            int len = snprintf(log, LOG_BUFFER_SIZE, "Timestamp: %u\n", timestamp);
-            if (len > 0) {
-                logByteStream->write(logByteStream->handle, (const uint8_t*) log, len);
-            }
-        }
+//        char log[LOG_BUFFER_SIZE];
+//        if (logDelay > 1000) {
+//            logDelay = 0;
+//            int len = snprintf(log, LOG_BUFFER_SIZE, "Timestamp: %u\n", timestamp);
+//            if (len > 0) {
+//                logByteStream->write(logByteStream->handle, (const uint8_t*) log, len);
+//            }
+//        }
 
         ScopeFramedStack_runThreadScope(scopeStack);
         usleep(INTERVAL_TIMESTAMP);
