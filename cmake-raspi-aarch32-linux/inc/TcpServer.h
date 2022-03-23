@@ -7,14 +7,13 @@
  *
  *****************************************************************************************************************************************/
 
-
 #ifndef SE_SCOPE_SERVER_TCPSERVER_H
 #define SE_SCOPE_SERVER_TCPSERVER_H
-
 
 #include <netdb.h>
 #include <mutex>
 #include <vector>
+#include <sys/select.h>
 
 class TcpServer {
 public:

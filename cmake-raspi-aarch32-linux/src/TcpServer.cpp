@@ -14,8 +14,6 @@
 #include <cstdio>
 #include <bitset>
 
-#define SA struct sockaddr
-
 constexpr size_t BUFFER_SIZE = 5*1024;
 
 TcpServer::TcpServer(int portNumber) {
