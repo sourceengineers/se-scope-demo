@@ -113,14 +113,6 @@ std::vector<uint8_t> TcpServer::receive() {
 
         if (bytesRead > 0) {
             data.insert(data.begin(), rec_buffer, rec_buffer + bytesRead);
-            std::cout << "Got data";
-            for (auto b : data) {
-                char x[5];
-                sprintf(x, "%d ", b);
-                std::cout << x;
-            }
-            std::cout << std::endl;
-
             mCommunicationMutex.unlock();
         }
     }
@@ -147,14 +139,6 @@ int TcpServer::transmit(std::vector<uint8_t> data) {
     }
     int bytesSent = -1;
     if(mCommunicationMutex.try_lock()){
-        std::cout << "Sending data: ";
-        for (auto b : data) {
-            char x[5];
-            sprintf(x, "%d ", b);
-            std::cout << x;
-        }
-        std::cout << std::endl;
-
         bytesSent = write(mConnectionFd, data.data(), data.size());
         if(bytesSent > 0){
             mIsConnectionEstablished = true;

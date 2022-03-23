@@ -19,7 +19,7 @@ private:
     TcpServer tcpServer;
     uint32_t timestamp;
     ScopeFramedStackHandle scopeStack;
-    int32_t flipflop{};
+    int32_t seesaw{};
     float sine{};
     IByteStreamHandle logByteStream;
 };
