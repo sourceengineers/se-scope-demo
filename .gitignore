@@ -1,7 +1,9 @@
 **/Debug*
 
-cmake-raspi-aarch32-linux/.idea/
+cmake-raspi-armhf-linux/.idea/
 
-cmake-raspi-aarch32-linux/build/
+cmake-raspi-armhf-linux/build/
 
-cmake-raspi-aarch32-linux/cmake-build-debug/
+cmake-raspi-armhf-linux/cmake-build-debug/
+
+.idea/
