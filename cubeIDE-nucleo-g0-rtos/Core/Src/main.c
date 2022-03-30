@@ -27,12 +27,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <math.h>
-#include <stdlib.h>
 #include "UartDriver.h"
 #include "RtosMutex.h"
 #include "RtosApplication.h"
+
 #include "Scope/Builders/ScopeFramedStack.h"
+#include "se-lib-c/stream/BufferedByteStream.h"
+#include "se-lib-c/stream/ThreadSafeByteStream.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,9 +63,10 @@ void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
-int __io_putchar(int ch){
-  HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
-  return ch;
+int __io_putchar(int ch)
+{
+    HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+    return ch;
 }
 
 /* USER CODE END PFP */
@@ -71,10 +74,10 @@ int __io_putchar(int ch){
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-
-
+// global timestamp
 uint32_t timestamp = 0;
 
+// scope variables
 const float frequency = 10.0f;
 float sinus = 0.0f;
 float cosinus = 0.0f;
@@ -83,7 +86,9 @@ float sum = 0.0f;
 int flipflop = -1;
 uint8_t toggle = 0;
 
+// global instances TODO passs to thread/task
 ScopeFramedStackHandle scopeStack;
+IByteStreamHandle logger;
 
 /* USER CODE END 0 */
 
@@ -93,8 +98,8 @@ ScopeFramedStackHandle scopeStack;
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-/* STM32G0xx HAL library initialization:
+    /* USER CODE BEGIN 1 */
+    /* STM32G0xx HAL library initialization:
        - Configure the Flash prefetch
        - Systick timer is configured by default as source of time base, but user 
          can eventually implement his proper time base source (a general purpose 
@@ -102,40 +107,34 @@ int main(void)
          duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and 
          handled in milliseconds basis.
        - Low Level Initialization
-     */
-  /* USER CODE END 1 */
+    */
+    /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+    /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
 
-  /* USER CODE BEGIN Init */
+    /* USER CODE BEGIN Init */
 
-//  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
-//  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-//  HAL_NVIC_SetPriority(SysTick_IRQn, 15, 0);
+    /* USER CODE END Init */
 
-  /* USER CODE END Init */
+    /* Configure the system clock */
+    SystemClock_Config();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    /* USER CODE BEGIN SysInit */
 
-  /* USER CODE BEGIN SysInit */
+    /* USER CODE END SysInit */
 
-  /* USER CODE END SysInit */
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_USART2_UART_Init();
+    MX_ADC1_Init();
+    MX_USART3_UART_Init();
+    /* USER CODE BEGIN 2 */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-  MX_ADC1_Init();
-  MX_USART3_UART_Init();
-  /* USER CODE BEGIN 2 */
-
-	RtosMutexHandle dataMutex = RtosMutex_create();
-	RtosMutexHandle configMutex = RtosMutex_create();
-
-	ScopeFramedStackConfig config = {
+    // scope configuratio
+    ScopeFramedStackConfig config = {
 	  .addressesInAddressAnnouncer = 6,
 	  .callback = &transmit_data,
 	  .timestamp = &timestamp,
@@ -144,16 +143,40 @@ int main(void)
 	  .sizeOfChannels = 50
 	};
 
+    // Stack mutexes
+	RtosMutexHandle dataMutex = RtosMutex_create();
+	RtosMutexHandle configMutex = RtosMutex_create();
+	RtosMutexHandle loggergMutex = RtosMutex_create();
+
 	ScopeFramedStackMutex mutexes = {
 	  .configMutex = RtosMutex_getIMutex(configMutex),
-	  .dataMutex = RtosMutex_getIMutex(dataMutex)
+	  .dataMutex = RtosMutex_getIMutex(dataMutex),
+	  .logBufferMutex = RtosMutex_getIMutex(loggergMutex)
 	};
 
-	uint8_t* meas = malloc(sizeof(uint8_t));
-	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes);
-	meas = malloc(sizeof(uint8_t));
+	/* Create the Logger and Buffer for the logger */
+	RtosMutexHandle bufferMutex = RtosMutex_create();
+	BufferedByteStreamHandle stream = BufferedByteStream_create(512);
+	ThreadSafeByteStreamHandle bufferedStream = ThreadSafeByteStream_create(RtosMutex_getIMutex(bufferMutex), BufferedByteStream_getIByteStream(stream));
+	logger = ThreadSafeByteStream_getIByteStream(bufferedStream);
+
+	ScopeFramedStackLogOptions scopeLogOptions = {
+	  .logByteStream = logger
+	};
+
+	// Priorities
+	Message_Priorities msgPrios = {
+		.data = MEDIUM,
+		.log = MEDIUM,
+		.stream = MEDIUM
+	};
+
+	// Scope instantiation
+	scopeStack = ScopeFramedStack_createThreadSafe(config, mutexes, scopeLogOptions, msgPrios);
+
 	UartDriver_init();
 
+	// Variable announcement
 	AnnounceStorageHandle addressStorage = ScopeFramedStack_getAnnounceStorage(scopeStack);
 	AnnounceStorage_addAnnounceAddress(addressStorage, "sinus", &sinus, SE_FLOAT);
 	AnnounceStorage_addAnnounceAddress(addressStorage, "cosinus", &cosinus, SE_FLOAT);
@@ -237,10 +260,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void _write(char *ptr, size_t len)
-{
-	HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, 0x0040);
-}
+
 /* USER CODE END 4 */
 
  /**
@@ -257,7 +277,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM1) {
-    HAL_IncTick();
+      HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
 

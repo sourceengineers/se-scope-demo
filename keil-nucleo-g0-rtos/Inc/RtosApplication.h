@@ -8,12 +8,13 @@
  External variables
 ******************************************************************************/
 
+extern const float frequency;
+
 extern float sinus;
 extern float cosinus;
 extern uint32_t timestamp;
 extern float leistung;
 extern float sum;
-const extern float frequency;
 extern int flipflop;
 extern uint8_t toggle;
 
